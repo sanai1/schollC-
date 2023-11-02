@@ -1,0 +1,320 @@
+
+#include <iostream>
+//#include <fstream>
+#include <regex>
+#include <string>
+
+using namespace std;
+
+struct person {
+    std::string name;
+    std::string gender;
+    
+    person(string n, string g): name{n}, gender{g} {}
+    
+    person* mother = nullptr;
+    person* father = nullptr;
+    person* child_1 = nullptr;
+    person* child_2 = nullptr;
+    person* child_3 = nullptr;
+    
+    
+    int wave = 0;
+};
+
+int cnt = 10; // Кол-во членов семьи
+person *familly[9];
+
+
+// Очистить номер волны у всего дерева
+void clear_wave(){
+    int i;
+    for (i=0; i<cnt; i++){
+        familly[i]->wave = 0;
+    }
+}
+
+// Проверить что введенное имя есть в справочнике
+bool ckeck_name (string name){
+    int i;
+    bool check_name;
+    for (i=0; i<cnt; i++){
+        if (familly[i]->name == name){
+            return true;
+        }
+    }
+    cout << "Имя '"<<name<<"' не задано в справочнике имен\n";
+    return false;
+}
+
+// По имени вернуть ссылку на персону
+person* get_person(string name){
+    int i;
+    bool check_name;
+    for (i=0; i<cnt; i++){
+        if (familly[i]->name == name){
+            //pers_result = familly[i];
+            //return true;
+            return familly[i];
+        }
+    }
+    return nullptr;
+}
+
+bool write_child(person* parent, person* child)
+{
+    if (parent->child_1 == nullptr){
+        parent->child_1 = child;
+        cout<<"OK";
+    } else if (parent->child_2 == nullptr){
+        parent->child_2 = child;
+        cout<<"OK";
+    } else if (parent->child_3 == nullptr){
+        parent->child_3 = child;
+        cout<<"OK";
+    }
+    else{
+        cout << "Ошибка связи. Возможно у '"<<parent->name<<"' уже есть 3 детей\n";
+        return false;
+    }
+    return true;
+}
+
+// Пускаем волну по родителям
+bool go_wave(person* person_start, person* person_from, person* person_to){
+    person* cur_wave_person[cnt-1];
+    person* next_wave_person[cnt-1];
+    person* cur_person;
+    
+    int i;
+    int idx_new_wave = 0;
+    int cur_wave = 1;
+    
+    for (i=0; i<cnt; i++){
+        next_wave_person[i] = nullptr; // Очистить новую волну
+    }
+    
+    next_wave_person[0] = person_start;
+    
+    // Цикл по Волнам по первому человеку
+    for (cur_wave=1; cur_wave<=cnt; cur_wave++){
+        idx_new_wave = 0;
+        
+        for (i=0; i<cnt; i++){
+            cur_wave_person[i] = next_wave_person[i]; // Записать персон в текущую волну
+            next_wave_person[i] = nullptr; // Очистить новую волну
+        }
+        
+        // Цикл по персонам в текущей волне (макс cnt персон)
+        for (i=0; i<cnt; i++){
+            if (cur_wave_person[i] != nullptr){
+                cur_person = cur_wave_person[i];
+                if (cur_person->wave == 0){
+                    cur_person->wave = cur_wave;
+                }
+                else{   // Если волна заполнена, то это первое пересечение от прошлой волны.
+                        // Считаем что это ближайшее родство
+                    
+                    if (cur_wave == 1 or cur_person->wave == 1){ // Прямая линия родства
+                        person* predok;
+                        person* potomok; 
+                        std::string rel_type;
+
+                        if (cur_wave == 1){
+                            potomok = person_from;
+                            predok = person_to;
+                        }
+                        else{
+                            predok = person_from;
+                            potomok = person_to;                            
+                        }
+                        
+                        int diff_wave = abs(cur_wave-cur_person->wave); // Разница в номерах волн
+                        switch (diff_wave){
+                            case 1:
+                                if (predok->gender=="Ж") { rel_type = "мамой"; } else { rel_type = "папой"; }
+                            break;
+                            case 2:
+                                if (predok->gender=="Ж") { rel_type = "бабушкой"; } else { rel_type = "дедушкой"; }
+                            break;  
+                            default:
+                                if (predok->gender=="Ж") { rel_type = ("бабушкой"); } else { rel_type = ("дедушкой"); }
+                                rel_type = std::string(diff_wave-2, '!')+rel_type;
+                                rel_type = std::regex_replace(rel_type, std::regex("!"), "пра");
+                        }
+
+                        cout << "Установлено прямое родство. '"<<potomok->name<<"' потомок '"<<predok->name<<"' \n";
+                        cout << "Предок '"<<predok->name<<"' является '"<<rel_type<<"' для '"<<potomok->name<<"' \n";
+                    }
+                    else{
+                        cout << "Прямого родства у '"<<person_from->name<<"' и '"<<person_to->name<<"' нет! Но есть общий предок '"<<cur_person->name<<"' \n";
+                    }
+                    return true;
+                }
+                
+                if (cur_person->mother != nullptr){
+                    next_wave_person[idx_new_wave] = cur_person->mother;
+                    idx_new_wave++;
+                }
+               
+               if (cur_person->father != nullptr){
+                    next_wave_person[idx_new_wave] = cur_person->father;
+                    idx_new_wave++;
+                } 
+            }
+        }
+        
+        // Если новая волна пустая то закончить
+        if (idx_new_wave == 0){
+            break;
+        }
+    }
+    return false;
+
+}
+
+bool is_number(const std::string& s)
+{
+    std::string::const_iterator it = s.begin();
+    while (it != s.end() && std::isdigit(*it)) ++it;
+    return !s.empty() && it == s.end();
+}
+
+int main(){
+    
+    
+    cout<<"Семейное древо. Доступные имена: ";
+    person igor = {"Игорь", "М"};
+    person tanya = {"Таня", "Ж"};
+    person sasha = {"Саша", "М"};
+    person ira = {"Ира", "Ж"};
+    person ivan = {"Иван", "М"};
+    person marina = {"Марина", "Ж"};
+    person lena = {"Лена", "Ж"};
+    person sergej = {"Сергей", "М"};
+    person lera = {"Лера", "Ж"};
+    person vova = {"Владимир","М"};
+    
+    
+    familly[0] = &igor;
+    familly[1] = &tanya;
+    familly[2] = &sasha;
+    familly[3] = &ira;
+    familly[4] = &ivan;
+    familly[5] = &marina;
+    familly[6] = &lena;
+    familly[7] = &sergej;
+    familly[8] = &lera;
+    familly[9] = &vova;
+    
+    for (int i=0; i<cnt; i++){
+        cout<<familly[i]->name<<" "; 
+    }
+    
+    
+    string main_menu {"0"}; // Число, читаемое с клавиатуры
+    std::string name_from;
+    std::string name_to;
+    
+    person* person_from;
+    person* person_to ;
+    int ref_type;
+    int res = std::stoi(main_menu);
+
+    while (res != 3) {
+        cout << "\n";
+        cout << "Введите номер действия и нажмите Enter:\n";
+        cout << " 1 Связать\n";
+        cout << " 2 Определить родство\n";
+        cout << " 3 Выйти\n";
+        cout << "Ваш выбор: ";
+        cin >> main_menu;
+        
+        if (is_number(main_menu)){
+            res = std::stoi(main_menu);
+        }else{
+            res = 0;
+        }
+        
+
+
+        switch (res){
+            case 1:
+            cout << "\n";
+            cout << "Кого нужно связать? Введите имя: ";
+            cin >> name_from;
+            //cout << "\n";
+            cout << "C кем нужно связать? Введите имя: ";
+            cin >> name_to;
+            
+
+            ref_type = 0; // Тип связи 
+            if (ckeck_name(name_from) && ckeck_name(name_to)){
+                person_from = get_person(name_from);
+                person_to = get_person(name_to);
+                //cout << "\n  = "<< person_from->name;
+                cout << "Кем приходится '"<<name_to<<"' по отношению к '"<<name_from<<"' ?\n";
+                while (ref_type != 1 && ref_type != 2 && ref_type != 3 && ref_type != 4) {
+                    cout << " 1 Родитель\n";
+                    cout << " 2 Ребенок\n ";
+                    cout << "Ваш выбор: ";
+                    cin >> ref_type;  
+                
+                    switch (ref_type){
+                        case 1:
+                            if (write_child(person_to, person_from)){
+                                if (person_to->gender == "М") {
+                                    person_from->father = person_to;
+                                }
+                                else{
+                                    person_from->mother = person_to;
+                                }                                
+                            }
+                            break;
+                        case 2:
+                            if (write_child(person_from, person_to)){
+                                if (person_from->gender == "М") {
+                                    person_to->father = person_from;
+                                }
+                                else{
+                                    person_to->mother = person_from;
+                                } 
+                            }
+
+                            break;
+                    }
+                }
+                
+            }
+            break;
+            
+            case 2:
+                cout << "\n";
+                cout << "Родство кого нужно проверить? Введите имя: ";
+                cin >> name_from;
+                //cout << "\n";
+                cout << "C кем проверяем родство? Введите имя: ";
+                cin >> name_to;
+                    
+                clear_wave();
+                
+                if (ckeck_name(name_from) && ckeck_name(name_to)){
+                    person_from = get_person(name_from);
+                    person_to = get_person(name_to);
+                    
+                    go_wave(person_from, person_from, person_to);
+                    bool rod = go_wave(person_to, person_from, person_to); 
+                    if (rod == false) cout<<"Родство не обнаружено!";
+                }
+                break;
+                
+            default:
+                cout<<"Введена не корректная запись.\nПопробуйте снова";
+                break;
+        }
+        
+    }
+    
+
+    return 0;
+}
