@@ -1,0 +1,185 @@
+#include <iostream>
+#include <fstream>
+
+using namespace std;
+
+string questoin [1000];
+string name [1000];
+int yes [1000];
+int no [1000];
+
+int indx_mx = 0;
+
+int* play_iteration(int mas[]) // метод задает вопрос и получает ответ
+{
+    string ans;
+    static int array_ans [2] = {-1};
+    switch (mas[1])
+    {
+        case 1: // идет по массиву вопросов
+            if (questoin[mas[0]] == "none") // первый запуск программы (древо пустое)
+            {
+                array_ans[0] = -1;
+                array_ans[1] = 0;
+                return array_ans;
+            }
+            else // последующие запуски программы (древо не пустое)
+            {
+                cout << questoin[mas[0]] << endl; // задает уточняющий вопрос
+                while (true)
+                {
+                    cin >> ans;
+                    if (ans == "да") // переход по ветки ДА к массиву имя
+                    {
+                        array_ans[0] = mas[0]+1; 
+                        array_ans[1] = 2;
+                        return array_ans;
+                    }
+                    else if (ans == "нет") // переход по ветки НЕТ к массиву вопрос
+                    {
+                        if (no[mas[0]] == -1) // нет информации о последующем животном по дереву
+                        {
+                            array_ans[0] = -1;
+                            array_ans[1] = mas[0];
+                        }
+                        else // есть информация о последующем животном в дереве
+                        {
+                            array_ans[0] = no[mas[0]];
+                            array_ans[1] = 1;
+                        }
+                        return array_ans;
+                    }
+                    else cout << "Я вас не понял, введите ответ в формате да/нет" << endl;
+                }
+            }
+            break;
+        case 2: // идет по массиву названий животных
+            cout << "Это " << name[mas[0]] << "?" << endl; // спрашивает угадал ли животное
+            while (true)
+            {
+                cin >> ans;
+                if (ans == "да") // программа отгадала животное
+                {
+                    array_ans[0] = mas[0];
+                    array_ans[1] = -2;
+                    return array_ans;
+                }
+                else if (ans == "нет") // переход по ветки НЕТ к массиву вопрос (программа не отгадала животное)
+                {
+                    if (no[mas[0]] == -1) // нет информации о последующем животном в дереве
+                    {
+                        array_ans[0] = -1;
+                        array_ans[1] = mas[0];
+                    }
+                    else // есть информация о последующем животном в дереве
+                    {
+                        array_ans[0] = no[mas[0]];
+                        array_ans[1] = 1;
+                    }
+                    return array_ans;
+                }
+                else cout << "Я вас не понял, введите ответ в формате да/нет" << endl;
+            }
+    }
+}
+
+void add_animal(int ind) // процедура добавления нового животного в дерево
+{
+    string ans_name, ans_qs;
+    cout << "Я сдаюсь, какое это животное?" << endl; // узнает название животного
+    cin >> ans_name;
+    name[indx_mx+1] = ans_name; // записывает названия
+    cout << "Введите определяющий вопрос к этому животному" << endl; // узнает уточняющий вопрос
+    getline(cin, ans_qs);
+    getline(cin, ans_qs);
+    questoin[indx_mx] = ans_qs; // записывает вопрос
+    if (indx_mx != 0) no[ind] = indx_mx; // если это не корневой элемент связывает с предшествующим животным
+    indx_mx += 2;
+    cout << "Животное добавлено в древо, перезапустите программу для дальнейшей игры..." << endl;
+}
+
+void writeFale()
+{
+    ofstream out;
+    out.open("fale_animal.txt");
+    out << indx_mx << endl;
+    for (int i = 0; i < 1000; i++)
+    {
+        out << questoin[i] << endl;
+        out << name[i] << endl;
+        out << yes[i] << endl;
+        out << no[i] << endl;; 
+    }
+    out.close();
+}
+
+void readFale()
+{
+    string str;
+    ifstream in("fale_animal.txt");
+    if (in)
+    {
+        getline(in, str);
+        indx_mx = stoi(str);
+    
+        for (int i = 0; i < 1000; i ++)
+        {
+            getline(in, str);;
+            questoin[i] = str;
+            getline(in, str);
+            name[i] = str;
+            getline(in, str);
+            yes[i] = stoi(str);
+            getline(in, str);
+            no[i] = stoi(str);
+        }
+    }
+    else
+    {
+        for (int i = 0; i < 1000; i++) // обнуление массивов (в них хранится информация о дереве)
+        {
+            questoin[i] = "none";
+            name[i] = "none";
+            yes[i] = -1;
+            no[i] = -1;
+        }
+    }
+    in.close();
+}
+
+int main() // основная программа
+{
+    cout << "Дверо животных" << endl;
+    cout << "Загадайте животное, а я попробую его угадать," << endl;
+    cout << "если вдруг мне не удасться это сделать, расскажите кто это был и я стану умнее" << endl << endl;
+    readFale();
+    int array_qs [2] = {0, 1}; // массив для обращения к методам
+    int* mas_ans; // массив для получения возвращенной информации из метода
+    while (true)
+    {
+        mas_ans = play_iteration(array_qs); // вызов метода для задавания вопроса
+        if (mas_ans[1] == -2 and mas_ans[0] >= 0) // перезапуск программы (победа)
+        {
+            cout << "Победа, я отгадал. Это был/была " << name[mas_ans[0]] << endl;
+            writeFale();
+            break;
+        }
+        else if (mas_ans[1] == 2 and mas_ans[0] >= 0) // перезапуск чтобы спросить угадала ли программа животное
+        {
+            array_qs[0] = mas_ans[0];
+            array_qs[1] = 2;
+        }
+        else if (mas_ans[1] == 1 and mas_ans[0] >= 0) // перезапуск программы чтобы задать уточняющий вопрос
+        {
+            array_qs[0] = mas_ans[0];
+            array_qs[1] = 1;
+        }
+        else if (mas_ans[0] == -1) // перезапуск с добавлением нового животного 
+        {
+            add_animal(mas_ans[1]); // вызов процедуры добавления животного
+            writeFale();
+            break;
+        }
+    }
+    cout << endl << endl;
+}
